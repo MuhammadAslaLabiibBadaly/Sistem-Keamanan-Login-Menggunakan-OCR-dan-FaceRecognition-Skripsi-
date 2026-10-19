@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Analisis Data Skripsi - Labiib</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .card-stats { border-left: 5px solid #0d6efd; }
+        .table-sm { font-size: 0.85rem; }
+        .card { border: none; border-radius: 12px; }
+        .shadow-sm { box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important; }
+        code { color: #d63384; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <h2 class="text-center mb-4 fw-bold">📊 Panel Analisis Akurasi & Performa Face Recognition</h2>
+
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white fw-bold">
+                        Ringkasan Uji Coba Per Mahasiswa
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            {% if rekap_npm %}
+                                {% for npm, count in rekap_npm.items() %}
+                                <div class="col-md-3 border-end">
+                                    <h5 class="mb-1">{{ npm }}</h5>
+                                    <p class="text-muted mb-0">{{ count }}x Percobaan</p>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="col-12 text-muted small">Belum ada data mahasiswa yang teruji.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card shadow-sm card-stats h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted text-uppercase small fw-bold">Total Mahasiswa Teruji</h6>
+                        <h2 class="display-6 fw-bold">{{ rekap_npm|length }}</h2>
+                        <hr>
+                        <p class="small text-secondary mb-0">Rincian aktivitas login per perangkat terekam otomatis dalam database CSV.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted text-uppercase small fw-bold mb-3">Grafik Perbandingan Model (Kecepatan vs Akurasi)</h6>
+                        <canvas id="researchChart" height="130"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                <span>Log Aktivitas Seluruh Uji Coba (VGG vs OpenFace)</span>
+                <span class="badge bg-secondary">Total Entri: {{ reports|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="table-light text-uppercase small">
+                            <tr>
+                                <th class="ps-3">NPM - Nama Mahasiswa</th>
+                                <th>Model AI</th>
+                                <th>Status Verifikasi</th>
+                                <th>Distance (Akurasi)</th>
+                                <th>Waktu Proses</th>
+                                <th class="text-center">Arsip Foto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in reports %}
+                            <tr class="align-middle">
+                                <td class="ps-3"><strong>{{ row.npm }}</strong> - {{ row.nama_mhs }}</td>
+                                <td><span class="badge border text-dark">{{ row.model }}</span></td>
+                                <td>
+                                    {% if row.verified == True or row.verified == "True" %}
+                                    <span class="badge bg-success">TERVERIFIKASI</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">GAGAL MATCH</span>
+                                    {% endif %}
+                                </td>
+                                <td><code>{{ row.distance }}</code> <small class="text-muted">(Th: {{ row.threshold }})</small></td>
+                                <td>{{ row.duration }} dtk</td>
+                                <td class="text-center">
+                                    <a href="/static/uploads/{{ row.photo_path }}" target="_blank" class="btn btn-sm btn-outline-primary px-3">Lihat Foto</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-4">
+            <p class="text-muted small">© 2026 Muhammad Asla Labiib Badaly - Universitas Nusantara PGRI Kediri</p>
+        </div>
+    </div>
+
+    <script>
+        // Data dikirim dari Flask menggunakan filter |tojson agar formatnya valid untuk JavaScript
+        const chartLabels = {{ chart_data.labels | tojson }};
+        const chartDurasi = {{ chart_data.durasi | tojson }};
+        const chartDistance = {{ chart_data.distance | tojson }};
+
+        const ctx = document.getElementById('researchChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartLabels,
+                datasets: [
+                    {
+                        label: 'Rata-rata Durasi (detik)',
+                        data: chartDurasi,
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgb(54, 162, 235)',
+                        borderWidth: 1.5
+                    },
+                    {
+                        label: 'Rata-rata Distance (Akurasi)',
+                        data: chartDistance,
+                        backgroundColor: 'rgba(255, 159, 64, 0.5)',
+                        borderColor: 'rgb(255, 159, 64)',
+                        borderWidth: 1.5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' }
+                },
+                scales: { 
+                    y: { 
+                        beginAtZero: true,
+                        title: { display: true, text: 'Nilai Nilai Komputasi' }
+                    } 
+                }
+            }
+        });
+    </script>
+</body>
+</html>
